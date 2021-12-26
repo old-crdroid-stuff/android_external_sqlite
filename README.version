@@ -1,3 +1,4 @@
-URL: http://sqlite.org/2017/sqlite-amalgamation-3190300.zip
-Version: 3.19.3
+URL: https://sqlite.org/src/info/b584fd36f787e6d7
+Version: 3.9.3 b584fd36f787e6d7926dd54ce7e2cfcfe6616030e4e05f42a5725173e8a8a680
+This patch fixes Magellan SQLite Security Vulnerability as in b/121156452
 BugComponent: 24950

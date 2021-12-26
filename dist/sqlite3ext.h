@@ -533,17 +533,9 @@ typedef int (*sqlite3_loadext_entry)(
 /* Version 3.9.0 and later */
 #define sqlite3_value_subtype          sqlite3_api->value_subtype
 #define sqlite3_result_subtype         sqlite3_api->result_subtype
-/* Version 3.10.0 and later */
-#define sqlite3_status64               sqlite3_api->status64
-#define sqlite3_strlike                sqlite3_api->strlike
-#define sqlite3_db_cacheflush          sqlite3_api->db_cacheflush
-/* Version 3.12.0 and later */
-#define sqlite3_system_errno           sqlite3_api->system_errno
-/* Version 3.14.0 and later */
-#define sqlite3_trace_v2               sqlite3_api->trace_v2
-#define sqlite3_expanded_sql           sqlite3_api->expanded_sql
-/* Version 3.18.0 and later */
-#define sqlite3_set_last_insert_rowid  sqlite3_api->set_last_insert_rowid
+#define sqlite3_bind_pointer           sqlite3_api->bind_pointer
+#define sqlite3_result_pointer         sqlite3_api->result_pointer
+#define sqlite3_value_pointer          sqlite3_api->value_pointer
 #endif /* !defined(SQLITE_CORE) && !defined(SQLITE_OMIT_LOAD_EXTENSION) */
 
 #if !defined(SQLITE_CORE) && !defined(SQLITE_OMIT_LOAD_EXTENSION)

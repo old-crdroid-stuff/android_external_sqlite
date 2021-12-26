@@ -1,6 +1,5 @@
-diff -r -u -d orig/shell.c ./shell.c
---- orig/shell.c	2017-06-08 08:09:50.000000000 -0700
-+++ ./shell.c	2017-06-17 11:46:33.393936019 -0700
+--- orig/shell.c	2018-12-26 11:55:34.963956755 -0800
++++ shell.c	2018-12-26 11:57:10.134892741 -0800
 @@ -52,6 +52,12 @@
  #endif
  #include <ctype.h>
@@ -37,76 +36,99 @@ diff -r -u -d orig/shell.c ./shell.c
    }
  }
  
-diff -r -u -d orig/sqlite3.c ./sqlite3.c
---- orig/sqlite3.c	2017-06-08 08:09:50.000000000 -0700
-+++ ./sqlite3.c	2017-06-17 11:48:34.149418030 -0700
-@@ -33862,6 +33862,9 @@
-   if( p->ctrlFlags & UNIXFILE_PSOW ){
-     rc |= SQLITE_IOCAP_POWERSAFE_OVERWRITE;
-   }
-+#ifdef SQLITE_ENABLE_ATOMIC_WRITE
-+  rc |= SQLITE_IOCAP_ATOMIC4K;
+--- orig/sqlite3.c	2018-12-26 11:55:34.975956620 -0800
++++ sqlite3.c	2018-12-26 11:57:10.162892428 -0800
+@@ -26494,6 +26494,13 @@
+ /* #include "sqliteInt.h" */
+ #if SQLITE_OS_UNIX              /* This file is used on unix only */
+ 
++/* Use posix_fallocate() if it is available
++*/
++#if !defined(HAVE_POSIX_FALLOCATE) \
++      && (_XOPEN_SOURCE >= 600 || _POSIX_C_SOURCE >= 200112L)
++# define HAVE_POSIX_FALLOCATE 1
++#endif
++
+ /*
+ ** There are various methods for file locking used for concurrency
+ ** control:
+@@ -27048,7 +27055,12 @@
+ #else
+   { "pread64",      (sqlite3_syscall_ptr)0,          0  },
+ #endif
++#ifdef ANDROID
++// Bionic defines pread64 using off64_t rather than off_t.
++#define osPread64   ((ssize_t(*)(int,void*,size_t,off64_t))aSyscall[10].pCurrent)
++#else
+ #define osPread64   ((ssize_t(*)(int,void*,size_t,off_t))aSyscall[10].pCurrent)
 +#endif
    return rc;
  }
  
-@@ -50495,15 +50498,9 @@
-   unsigned pgFlags      /* Various flags */
- ){
-   unsigned level = pgFlags & PAGER_SYNCHRONOUS_MASK;
--  if( pPager->tempFile ){
--    pPager->noSync = 1;
--    pPager->fullSync = 0;
--    pPager->extraSync = 0;
--  }else{
--    pPager->noSync =  level==PAGER_SYNCHRONOUS_OFF ?1:0;
--    pPager->fullSync = level>=PAGER_SYNCHRONOUS_FULL ?1:0;
--    pPager->extraSync = level==PAGER_SYNCHRONOUS_EXTRA ?1:0;
--  }
-+  pPager->noSync =  1;
-+  pPager->fullSync = 0;
-+  pPager->extraSync = 0;
-   if( pPager->noSync ){
-     pPager->syncFlags = 0;
-     pPager->ckptSyncFlags = 0;
-@@ -51813,20 +51810,12 @@
-   pPager->memDb = (u8)memDb;
-   pPager->readOnly = (u8)readOnly;
-   assert( useJournal || pPager->tempFile );
--  pPager->noSync = pPager->tempFile;
--  if( pPager->noSync ){
--    assert( pPager->fullSync==0 );
--    assert( pPager->extraSync==0 );
--    assert( pPager->syncFlags==0 );
--    assert( pPager->walSyncFlags==0 );
--    assert( pPager->ckptSyncFlags==0 );
--  }else{
--    pPager->fullSync = 1;
--    pPager->extraSync = 0;
--    pPager->syncFlags = SQLITE_SYNC_NORMAL;
--    pPager->walSyncFlags = SQLITE_SYNC_NORMAL | WAL_SYNC_TRANSACTIONS;
--    pPager->ckptSyncFlags = SQLITE_SYNC_NORMAL;
--  }
-+  pPager->noSync = 1;
-+  assert( pPager->fullSync==0 );
-+  assert( pPager->extraSync==0 );
-+  assert( pPager->syncFlags==0 );
-+  assert( pPager->walSyncFlags==0 );
-+  assert( pPager->ckptSyncFlags==0 );
-   /* pPager->pFirst = 0; */
-   /* pPager->pFirstSynced = 0; */
-   /* pPager->pLast = 0; */
-@@ -98996,7 +98985,7 @@
+   { "write",        (sqlite3_syscall_ptr)write,      0  },
+ #define osWrite     ((ssize_t(*)(int,const void*,size_t))aSyscall[11].pCurrent)
+@@ -27066,8 +27078,14 @@
+ #else
+   { "pwrite64",     (sqlite3_syscall_ptr)0,          0  },
  #endif
-     sqlite3BtreeLeave(aNew->pBt);
++#ifdef ANDROID
++// Bionic defines pwrite64 using off64_t rather than off_t.
++#define osPwrite64  ((ssize_t(*)(int,const void*,size_t,off64_t))\
++                    aSyscall[13].pCurrent)
++#else
+ #define osPwrite64  ((ssize_t(*)(int,const void*,size_t,off_t))\
+                     aSyscall[13].pCurrent)
++#endif
+ 
+   { "fchmod",       (sqlite3_syscall_ptr)fchmod,     0  },
+ #define osFchmod    ((int(*)(int,mode_t))aSyscall[14].pCurrent)
+@@ -30316,7 +30334,7 @@
+   SimulateIOError( rc=1 );
+   if( rc!=0 ){
+     storeLastErrno((unixFile*)id, errno);
+-    return SQLITE_IOERR_FSTAT;
++    return unixLogError(SQLITE_IOERR_FSTAT, "fstat", ((unixFile*)id)->zPath);
    }
--  aNew->safety_level = SQLITE_DEFAULT_SYNCHRONOUS+1;
-+  aNew->safety_level = 1;
-   aNew->zDbSName = sqlite3DbStrDup(db, zName);
-   if( rc==SQLITE_OK && aNew->zDbSName==0 ){
-     rc = SQLITE_NOMEM_BKPT;
-@@ -143440,7 +143429,7 @@
-   ** database it is OFF. This matches the pager layer defaults.  
+   *pSize = buf.st_size;
+ 
+@@ -30352,7 +30370,7 @@
+     struct stat buf;              /* Used to hold return values of fstat() */
+    
+     if( osFstat(pFile->h, &buf) ){
+-      return SQLITE_IOERR_FSTAT;
++      return unixLogError(SQLITE_IOERR_FSTAT, "fstat", pFile->zPath);
+     }
+ 
+     nSize = ((nByte+pFile->szChunk-1) / pFile->szChunk) * pFile->szChunk;
+@@ -30937,7 +30955,7 @@
+     ** with the same permissions.
+     */
+     if( osFstat(pDbFd->h, &sStat) && pInode->bProcessLock==0 ){
+-      rc = SQLITE_IOERR_FSTAT;
++      rc = unixLogError(SQLITE_IOERR_FSTAT, "fstat", pDbFd->zPath);
+       goto shm_open_err;
+     }
+ 
+@@ -32284,7 +32302,7 @@
+       *pUid = sStat.st_uid;
+       *pGid = sStat.st_gid;
+     }else{
+-      rc = SQLITE_IOERR_FSTAT;
++      rc = unixLogError(SQLITE_IOERR_FSTAT, "stat", zDb);
+     }
+   }else if( flags & SQLITE_OPEN_DELETEONCLOSE ){
+     *pMode = 0600;
+@@ -108108,7 +108126,7 @@
+   }
+   if( pDb->pSchema->file_format>SQLITE_MAX_FILE_FORMAT ){
+     sqlite3SetString(pzErrMsg, db, "unsupported file format");
+-    rc = SQLITE_ERROR;
++    rc = SQLITE_CORRUPT_BKPT; // Android Change from "rc = SQLITE_ERROR;"
+     goto initone_error_out;
+   }
+ 
+@@ -139856,16 +139874,28 @@
+   ** module with sqlite.
    */
    db->aDb[0].zDbSName = "main";
 -  db->aDb[0].safety_level = SQLITE_DEFAULT_SYNCHRONOUS+1;
