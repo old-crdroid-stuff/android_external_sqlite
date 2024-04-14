@@ -417,7 +417,10 @@ static void localized_collator_dtor(UCollator* collator)
 
 extern "C" int register_localized_collators(sqlite3* handle, const char* systemLocale, int utf16Storage)
 {
+    int err;
     UErrorCode status = U_ZERO_ERROR;
+    void* icudata;
+
     UCollator* collator = ucol_open(systemLocale, &status);
     if (U_FAILURE(status)) {
         return -1;
@@ -428,7 +431,10 @@ extern "C" int register_localized_collators(sqlite3* handle, const char* systemL
         return -1;
     }
 
-    int err;
+    status = U_ZERO_ERROR;
+    char buf[1024];
+    ucol_getShortDefinitionString(collator, NULL, buf, 1024, &status);
+
     if (utf16Storage) {
         err = sqlite3_create_collation_v2(handle, LOCALIZED_COLLATOR_NAME, SQLITE_UTF16, collator,
                 collate16, (void(*)(void*))localized_collator_dtor);
@@ -470,6 +476,8 @@ extern "C" int register_localized_collators(sqlite3* handle, const char* systemL
         return -1;
     }
 
+    status = U_ZERO_ERROR;
+    // ucol_getShortDefinitionString(collator, NULL, buf, 1024, &status);
     if (utf16Storage) {
         err = sqlite3_create_collation_v2(handle, PHONEBOOK_COLLATOR_NAME, SQLITE_UTF16, collator,
                 collate16, (void(*)(void*))localized_collator_dtor);
@@ -547,9 +555,8 @@ extern "C" int register_android_functions(sqlite3 * handle, int utf16Storage)
 #endif
 
     // Register the _PHONE_NUMBER_STRIPPED_REVERSED function, which imitates
-    // PhoneNumberUtils.getStrippedReversed.  This function is used by
-    // packages/providers/ContactsProvider/src/com/android/providers/contacts/LegacyApiSupport.java
-    // to provide compatibility with Android 1.6 and earlier.
+    // PhoneNumberUtils.getStrippedReversed.  This function is not public API,
+    // it is only used for compatibility with Android 1.6 and earlier.
     err = sqlite3_create_function(handle,
         "_PHONE_NUMBER_STRIPPED_REVERSED",
         1, SQLITE_UTF8, NULL,

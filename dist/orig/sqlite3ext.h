@@ -15,9 +15,11 @@
 ** as extensions by SQLite should #include this file instead of 
 ** sqlite3.h.
 */
-#ifndef SQLITE3EXT_H
-#define SQLITE3EXT_H
+#ifndef _SQLITE3EXT_H_
+#define _SQLITE3EXT_H_
 #include "sqlite3.h"
+
+typedef struct sqlite3_api_routines sqlite3_api_routines;
 
 /*
 ** The following structure holds pointers to all of the SQLite API
@@ -273,28 +275,7 @@ struct sqlite3_api_routines {
   /* Version 3.9.0 and later */
   unsigned int (*value_subtype)(sqlite3_value*);
   void (*result_subtype)(sqlite3_context*,unsigned int);
-  /* Version 3.10.0 and later */
-  int (*status64)(int,sqlite3_int64*,sqlite3_int64*,int);
-  int (*strlike)(const char*,const char*,unsigned int);
-  int (*db_cacheflush)(sqlite3*);
-  /* Version 3.12.0 and later */
-  int (*system_errno)(sqlite3*);
-  /* Version 3.14.0 and later */
-  int (*trace_v2)(sqlite3*,unsigned,int(*)(unsigned,void*,void*,void*),void*);
-  char *(*expanded_sql)(sqlite3_stmt*);
-  /* Version 3.18.0 and later */
-  void (*set_last_insert_rowid)(sqlite3*,sqlite3_int64);
 };
-
-/*
-** This is the function signature used for all extension entry points.  It
-** is also defined in the file "loadext.c".
-*/
-typedef int (*sqlite3_loadext_entry)(
-  sqlite3 *db,                       /* Handle to the database. */
-  char **pzErrMsg,                   /* Used to set error string on failure. */
-  const sqlite3_api_routines *pThunk /* Extension API function pointers. */
-);
 
 /*
 ** The following macros redefine the API routines so that they are
@@ -553,4 +534,4 @@ typedef int (*sqlite3_loadext_entry)(
 # define SQLITE_EXTENSION_INIT3     /*no-op*/
 #endif
 
-#endif /* SQLITE3EXT_H */
+#endif /* _SQLITE3EXT_H_ */
